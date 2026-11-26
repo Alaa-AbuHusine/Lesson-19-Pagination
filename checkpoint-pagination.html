@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Checkpoint: API Mapping into Paginated Table — Lesson 19</title>
+  <style>
+    :root {
+      /* Espresso & Warm Cream (Default) */
+      --bg: #211713;
+      --surface: #493126;
+      --surface-hover: #5c3f31;
+      --surface-bar: rgba(33, 23, 19, 0.5);
+      --border: #78533B;
+      --text: #F6EEDB;
+      --text-muted: #E0C58E;
+      --primary: #B18A62;
+      --primary-hover: #78533B;
+      --primary-soft: rgba(177, 138, 98, 0.22);
+      --glow-rgb: 224, 197, 142;
+      --accent-rgb: 177, 138, 98;
+      --success: #E0C58E;
+      --success-soft: rgba(224, 197, 142, 0.16);
+      --danger: #f59e0b;
+      --danger-soft: rgba(245, 158, 11, 0.16);
+      --radius: 14px;
+      --shadow: 0 20px 48px rgba(15, 10, 7, 0.58);
+    }
+
+    [data-theme="dark"] {
+      /* Espresso Dark Mode (Ultra-Deep Roast) */
+      --bg: #0F0A08;
+      --surface: #1C130F;
+      --surface-hover: #2B1E18;
+      --surface-bar: rgba(15, 10, 8, 0.72);
+      --border: #493126;
+      --text: #F6EEDB;
+      --text-muted: #B18A62;
+      --primary: #B18A62;
+      --primary-hover: #78533B;
+      --primary-soft: rgba(177, 138, 98, 0.16);
+      --glow-rgb: 177, 138, 98;
+      --accent-rgb: 120, 83, 59;
+      --success: #E0C58E;
+      --success-soft: rgba(224, 197, 142, 0.12);
+      --danger: #f59e0b;
+      --danger-soft: rgba(245, 158, 11, 0.14);
+      --shadow: 0 24px 56px rgba(0, 0, 0, 0.78);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", Inter, system-ui, -apple-system, sans-serif;
+      background:
+        radial-gradient(circle at 15% 15%, rgba(var(--accent-rgb), 0.2), transparent 42%),
+        radial-gradient(circle at 85% 80%, rgba(var(--glow-rgb), 0.12), transparent 42%),
+        var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 36px 20px;
+      line-height: 1.5;
+      overflow-x: hidden;
+      transition: background-color 0.35s ease, color 0.35s ease;
+    }
+
+    /* Smooth Cursor Spotlight */
+    .cursor-glow {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 420px;
+      height: 420px;
+      border-radius: 50%;
+      pointer-events: none;
+      background: radial-gradient(
+        circle,
+        rgba(var(--glow-rgb), 0.2) 0%,
+        rgba(var(--accent-rgb), 0.1) 35%,
+        transparent 70%
+      );
+      transform: translate3d(-50%, -50%, 0);
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      z-index: 0;
+      will-change: transform;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1060px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: var(--primary-soft);
+      color: var(--text-muted);
+      border: 1px solid rgba(211, 175, 192, 0.22);
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .header h1 {
+      font-size: 1.65rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .header p {
+      color: var(--text-muted);
+      font-size: 0.92rem;
+      margin-top: 4px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Card */
+    .card {
+      position: relative;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      --mouse-x: 50%;
+      --mouse-y: 50%;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: radial-gradient(
+        520px circle at var(--mouse-x) var(--mouse-y),
+        rgba(var(--glow-rgb), 0.14),
+        transparent 55%
+      );
+      opacity: 0;
+      transition: opacity 0.35s ease;
+      z-index: 0;
+    }
+
+    .card:hover::before {
+      opacity: 1;
+    }
+
+    .card > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 18px 22px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-bar);
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+
+    .stat-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 11px;
+      border-radius: 8px;
+      background: rgba(118, 81, 107, 0.25);
+      border: 1px solid rgba(211, 175, 192, 0.16);
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .stat-pill strong {
+      color: var(--text-muted);
+    }
+
+    .controls-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .controls-group label {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    select,
+    button {
+      font-family: inherit;
+      font-size: 0.88rem;
+      border-radius: 9px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      transition: all 0.18s ease;
+    }
+
+    select {
+      padding: 7px 12px;
+      cursor: pointer;
+    }
+
+    select:focus,
+    button:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .btn:hover:not(:disabled) {
+      background: var(--surface-hover);
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(169, 120, 145, 0.28);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(0) scale(0.97);
+    }
+
+    .btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: var(--primary);
+      border-color: var(--primary);
+      color: var(--bg);
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    /* Status Banners */
+    .status-banner {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 22px;
+      font-size: 0.9rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .status-banner.visible {
+      display: flex;
+    }
+
+    .status-banner.loading {
+      background: var(--primary-soft);
+      color: var(--text);
+    }
+
+    .status-banner.error {
+      background: var(--danger-soft);
+      color: #fbcfe8;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(211, 175, 192, 0.35);
+      border-top-color: var(--text);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* Table */
+    .table-wrapper {
+      width: 100%;
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      font-size: 0.9rem;
+    }
+
+    thead th {
+      padding: 13px 18px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      background: rgba(33, 27, 42, 0.65);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    tbody td {
+      padding: 14px 18px;
+      border-bottom: 1px solid rgba(118, 81, 107, 0.45);
+      vertical-align: middle;
+    }
+
+    tbody tr {
+      transition: background 0.22s ease, transform 0.22s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.22s ease;
+      animation: rowFadeIn 0.28s ease both;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
+    tbody tr:hover {
+      background: rgba(169, 120, 145, 0.14);
+      transform: translateX(4px);
+      box-shadow: inset 3px 0 0 var(--primary);
+    }
+
+    tbody tr:hover .avatar {
+      transform: scale(1.08);
+      border-color: var(--text-muted);
+      box-shadow: 0 0 12px rgba(211, 175, 192, 0.35);
+    }
+
+    @keyframes rowFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .user-cell {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .avatar {
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: var(--primary-soft);
+      color: var(--text);
+      display: grid;
+      place-items: center;
+      font-weight: 700;
+      font-size: 0.82rem;
+      flex-shrink: 0;
+      border: 1px solid rgba(211, 175, 192, 0.35);
+      transition: transform 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease;
+    }
+
+    .user-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .user-handle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .role-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      background: var(--success-soft);
+      color: var(--text);
+      border: 1px solid rgba(211, 175, 192, 0.25);
+      text-transform: capitalize;
+    }
+
+    .id-cell {
+      font-variant-numeric: tabular-nums;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 48px 20px;
+      color: var(--text-muted);
+    }
+
+    /* Pagination Footer */
+    .pagination-footer {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 16px 22px;
+      border-top: 1px solid var(--border);
+      background: var(--surface-bar);
+    }
+
+    .pagination-info {
+      font-size: 0.86rem;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .pagination-controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #pageNumbers {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .page-btn {
+      min-width: 36px;
+      height: 36px;
+      padding: 0 10px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .page-btn.active {
+      background: var(--primary);
+      border-color: var(--text-muted);
+      color: var(--bg);
+      font-weight: 700;
+      box-shadow: 0 0 0 3px rgba(var(--glow-rgb), 0.28);
+    }
+  </style>
+</head>
+<body>
+  <div id="cursorGlow" class="cursor-glow" aria-hidden="true"></div>
+  <main class="container">
+    <header class="header">
+      <div>
+        <span class="badge">HHRD Academy · Lesson 19 Checkpoint</span>
+        <h1>API Mapping into Paginated Table</h1>
+        <p>Live API data sliced one page at a time with defensive bounds &amp; event delegation.</p>
+      </div>
+      <div class="header-actions">
+        <button id="themeToggleBtn" class="btn" type="button">🌙 Dark Mode</button>
+        <button id="reloadBtn" class="btn" type="button">↻ Reload API</button>
+      </div>
+    </header>
+
+    <section class="card" aria-label="Paginated Users Table">
+      <!-- Toolbar -->
+      <div class="toolbar">
+        <div class="stats">
+          <span class="stat-pill">Total Users: <strong id="totalCount">0</strong></span>
+          <span class="stat-pill">Page: <strong id="pageIndicator">1 / 1</strong></span>
+        </div>
+
+        <div class="controls-group">
+          <label for="pageSize">Rows per page:</label>
+          <select id="pageSize">
+            <option value="5" selected>5</option>
+            <option value="10">10</option>
+            <option value="15">15</option>
+            <option value="25">25</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Loading & Error States -->
+      <div id="loadingBanner" class="status-banner loading" role="status">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span class="spinner" aria-hidden="true"></span>
+          <span>Fetching users from API...</span>
+        </div>
+      </div>
+
+      <div id="errorBanner" class="status-banner error" role="alert">
+        <span id="errorMessage">Failed to load users.</span>
+        <button id="retryBtn" class="btn btn-primary" type="button">Try Again</button>
+      </div>
+
+      <!-- Data Table -->
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>User</th>
+              <th>Email</th>
+              <th>City</th>
+              <th>Company</th>
+              <th>Role</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+
+      <!-- Pagination Footer -->
+      <div class="pagination-footer">
+        <div id="showingInfo" class="pagination-info">Showing 0–0 of 0 users</div>
+
+        <nav class="pagination-controls" aria-label="Table pagination">
+          <button id="prevBtn" class="btn" type="button">← Previous</button>
+          <div id="pageNumbers"></div>
+          <button id="nextBtn" class="btn" type="button">Next →</button>
+        </nav>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ---------------------------------------------------------
+    // 1. XSS Protection Helper (from Lesson 18)
+    // ---------------------------------------------------------
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    // ---------------------------------------------------------
+    // 2. State: Three Core Numbers + Data Array
+    // ---------------------------------------------------------
+    let allUsers = [];
+    let currentPage = 1;
+    let pageSize = Number(document.querySelector("#pageSize").value) || 5;
+
+    const API_URL = "https://dummyjson.com/users?limit=30";
+
+    // Cached DOM references
+    const tableBody = document.querySelector("#tableBody");
+    const pageNumbersEl = document.querySelector("#pageNumbers");
+    const prevBtn = document.querySelector("#prevBtn");
+    const nextBtn = document.querySelector("#nextBtn");
+    const pageSizeSelect = document.querySelector("#pageSize");
+    const totalCountEl = document.querySelector("#totalCount");
+    const pageIndicatorEl = document.querySelector("#pageIndicator");
+    const showingInfoEl = document.querySelector("#showingInfo");
+    const loadingBanner = document.querySelector("#loadingBanner");
+    const errorBanner = document.querySelector("#errorBanner");
+    const errorMessageEl = document.querySelector("#errorMessage");
+    const reloadBtn = document.querySelector("#reloadBtn");
+    const retryBtn = document.querySelector("#retryBtn");
+
+    // ---------------------------------------------------------
+    // 3. Total Pages Helper (Defensive: at least 1 page)
+    // ---------------------------------------------------------
+    function getTotalPages() {
+      const total = allUsers.length;
+      const pages = Math.ceil(total / pageSize);
+      return pages < 1 ? 1 : pages;
+    }
+
+    // ---------------------------------------------------------
+    // 4. Render One Page (Clamp -> Slice -> Map & Join)
+    // ---------------------------------------------------------
+    function render() {
+      const total = allUsers.length;
+      const totalPages = getTotalPages();
+
+      // Defensive clamping: keep currentPage within [1, totalPages]
+      if (currentPage < 1) currentPage = 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const start = (currentPage - 1) * pageSize;
+      const pageUsers = allUsers.slice(start, start + pageSize);
+
+      // Update summary counters
+      totalCountEl.textContent = total;
+      pageIndicatorEl.textContent = `${currentPage} / ${totalPages}`;
+
+      if (total === 0) {
+        showingInfoEl.textContent = "Showing 0–0 of 0 users";
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="empty-state">No users found to display.</td>
+          </tr>
+        `;
+      } else {
+        const from = start + 1;
+        const to = start + pageUsers.length;
+        showingInfoEl.textContent = `Showing ${from}–${to} of ${total} users`;
+
+        tableBody.innerHTML = pageUsers
+          .map((user) => {
+            const fullName = `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim();
+            const initials = `${(user.firstName?.[0] ?? "U")}${(user.lastName?.[0] ?? "")}`.toUpperCase();
+            const username = user.username ? `@${user.username}` : "";
+            const city = user.address?.city ?? "—";
+            const company = user.company?.name ?? "—";
+            const role = user.role ?? "user";
+
+            return `
+              <tr>
+                <td class="id-cell">${escapeHtml(user.id)}</td>
+                <td>
+                  <div class="user-cell">
+                    <span class="avatar">${escapeHtml(initials)}</span>
+                    <div>
+                      <div class="user-name">${escapeHtml(fullName)}</div>
+                      <div class="user-handle">${escapeHtml(username)}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>${escapeHtml(user.email)}</td>
+                <td>${escapeHtml(city)}</td>
+                <td>${escapeHtml(company)}</td>
+                <td><span class="role-badge">${escapeHtml(role)}</span></td>
+              </tr>
+            `;
+          })
+          .join("");
+      }
+
+      renderButtons(totalPages);
+    }
+
+    // ---------------------------------------------------------
+    // 5. Render Pagination Buttons & Disabled Guards
+    // ---------------------------------------------------------
+    function renderButtons(totalPages) {
+      prevBtn.disabled = currentPage === 1;
+      nextBtn.disabled = currentPage === totalPages;
+
+      let buttonsHtml = "";
+      for (let page = 1; page <= totalPages; page++) {
+        const activeClass = page === currentPage ? "active" : "";
+        buttonsHtml += `
+          <button
+            type="button"
+            class="btn page-btn ${activeClass}"
+            data-page="${page}"
+            aria-current="${page === currentPage ? "page" : "false"}"
+          >
+            ${page}
+          </button>
+        `;
+      }
+
+      pageNumbersEl.innerHTML = buttonsHtml;
+    }
+
+    // ---------------------------------------------------------
+    // 6. Event Listeners (Event Delegation for Page Numbers)
+    // ---------------------------------------------------------
+    pageNumbersEl.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-page]");
+      if (!button) return;
+
+      const page = Number(button.dataset.page);
+      if (page && page !== currentPage) {
+        currentPage = page;
+        render();
+      }
+    });
+
+    prevBtn.addEventListener("click", () => {
+      if (currentPage > 1) {
+        currentPage -= 1;
+        render();
+      }
+    });
+
+    nextBtn.addEventListener("click", () => {
+      if (currentPage < getTotalPages()) {
+        currentPage += 1;
+        render();
+      }
+    });
+
+    pageSizeSelect.addEventListener("change", (event) => {
+      pageSize = Number(event.target.value);
+      currentPage = 1; // Reset to page 1 so we never land past the end
+      render();
+    });
+
+    reloadBtn.addEventListener("click", loadUsers);
+    retryBtn.addEventListener("click", loadUsers);
+
+    // ---------------------------------------------------------
+    // 7. Fetch API Data (async/await + Loading & Error States)
+    // ---------------------------------------------------------
+    async function loadUsers() {
+      loadingBanner.classList.add("visible");
+      errorBanner.classList.remove("visible");
+      reloadBtn.disabled = true;
+
+      try {
+        const response = await fetch(API_URL);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} — Could not fetch users.`);
+        }
+
+        const data = await response.json();
+        allUsers = Array.isArray(data.users) ? data.users : [];
+        currentPage = 1;
+        render();
+      } catch (error) {
+        allUsers = [];
+        render();
+        errorMessageEl.textContent = error.message || "Network error while loading users.";
+        errorBanner.classList.add("visible");
+      } finally {
+        loadingBanner.classList.remove("visible");
+        reloadBtn.disabled = false;
+      }
+    }
+
+    // Initial load
+    loadUsers();
+
+    // ---------------------------------------------------------
+    // 8. Smooth Cursor Spotlight & Card Glow Tracking
+    // ---------------------------------------------------------
+    const cursorGlow = document.querySelector("#cursorGlow");
+    const cardEl = document.querySelector(".card");
+
+    let targetX = window.innerWidth / 2;
+    let targetY = window.innerHeight / 2;
+    let currentX = targetX;
+    let currentY = targetY;
+
+    window.addEventListener("mousemove", (event) => {
+      targetX = event.clientX;
+      targetY = event.clientY;
+      cursorGlow.style.opacity = "1";
+
+      const rect = cardEl.getBoundingClientRect();
+      cardEl.style.setProperty("--mouse-x", `${event.clientX - rect.left}px`);
+      cardEl.style.setProperty("--mouse-y", `${event.clientY - rect.top}px`);
+    });
+
+    document.addEventListener("mouseleave", () => {
+      cursorGlow.style.opacity = "0";
+    });
+
+    function animateCursorGlow() {
+      // Smooth lerp interpolation for fluid trailing transition
+      currentX += (targetX - currentX) * 0.14;
+      currentY += (targetY - currentY) * 0.14;
+      cursorGlow.style.transform = `translate3d(${currentX}px, ${currentY}px, 0) translate(-50%, -50%)`;
+      requestAnimationFrame(animateCursorGlow);
+    }
+
+    animateCursorGlow();
+
+    // ---------------------------------------------------------
+    // 9. Espresso Dark Mode Switcher
+    // ---------------------------------------------------------
+    const themeToggleBtn = document.querySelector("#themeToggleBtn");
+    themeToggleBtn.addEventListener("click", () => {
+      const isDark = document.documentElement.getAttribute("data-theme") === "dark";
+      if (isDark) {
+        document.documentElement.removeAttribute("data-theme");
+        themeToggleBtn.textContent = "🌙 Dark Mode";
+      } else {
+        document.documentElement.setAttribute("data-theme", "dark");
+        themeToggleBtn.textContent = "☕ Espresso Mode";
+      }
+    });
+  </script>
+</body>
+</html>
